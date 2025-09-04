@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>BI Catering — All-in-One</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js + plugin para rótulos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+  <!-- html2canvas para exportar PNG -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <style>
+    :root{ --brand:#0b59f8; --accent:#22a6f2; --bg:#f5f7fb; }
+    body{
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(34,166,242,.06), transparent 40%),
+        radial-gradient(900px 450px at 85% -10%, rgba(11,89,248,.06), transparent 40%),
+        var(--bg);
+    }
+    .nav-pill{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-radius:9999px;border:1px solid #e5e7eb;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.02);transition:box-shadow .2s,transform .05s;cursor:pointer}
+    .nav-pill:active{transform:translateY(1px)}
+    .nav-pill.active{background:linear-gradient(180deg,#fff,#f7faff);box-shadow:0 8px 22px rgba(11,89,248,.18);color:#0b59f8;border-color:#dbeafe}
+    .card{background:rgba(255,255,255,.92);border:1px solid #eef2f7;backdrop-filter:saturate(160%) blur(8px)}
+    .card-shadow{box-shadow:0 10px 30px rgba(11,89,248,.05)}
+    .chip{border:1px solid #e5e7eb;border-radius:9999px;padding:.35rem .8rem;background:#fff;cursor:pointer}
+    .chip.on{background:#EEF2FF;border-color:#C7D2FE;color:#1E3A8A}
+    .kpi-bar{height:6px;background:#e5e7eb;border-radius:9999px;overflow:hidden}
+    .kpi-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--accent));border-radius:inherit;width:0%}
+    .input-field{border:1px solid #e5e7eb;background:#fff}
+    .chart-container{position:relative;min-height:260px}
+    .sticky-th{position:sticky;top:0;background:#f8fafc;z-index:2}
+    .sticky-first{position:sticky;left:0;background:inherit;z-index:1}
+    .sticky-right{position:sticky;right:0;background:#f8fafc;z-index:1}
+    .heat-ok{background:#E7F8EF}.heat-warn{background:#FEF3C7}.heat-bad{background:#FEE2E2}
+    #toast{position:fixed;right:16px;bottom:16px;z-index:50;display:none}
+  </style>
+</head>
+<body class="text-gray-800">
+  <div class="max-w-7xl mx-auto p-6 space-y-6 sm:space-y-8">
+
+    <!-- Cabeçalho -->
+    <header class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="h-11 w-11 rounded-2xl grid place-items-center text-white font-bold"
+             style="background:linear-gradient(135deg,var(--brand),var(--accent));">BI</div>
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">BI Catering</h1>
+          <p class="text-sm text-gray-500">Dashboard • Coleta &amp; Análise de Dados</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnTheme" class="nav-pill" title="Tema">🌗 Tema</button>
+      </div>
+    </header>
+
+    <!-- Navegação -->
+    <nav id="topNav" class="flex flex-wrap gap-2">
+      <button id="tabColeta"    class="nav-pill">Coleta</button>
+      <button id="tabPesquisa"  class="nav-pill">Pesquisa</button>
+      <button id="tabDashboard" class="nav-pill active">Dashboard</button>
+      <button id="tabOverview"  class="nav-pill">Visão Geral</button>
+      <button id="tabMatrix"    class="nav-pill">Matriz KPI</button>
+    </nav>
+
+    <!-- ======================== COLETA ======================== -->
+    <main id="viewColeta" class="hidden space-y-6">
+      <form id="formBI" class="space-y-6">
+
+        <section class="card card-shadow rounded-2xl p-5">
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            <div class="flex-1">
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Data <span class="text-red-500">*</span></label>
+              <input id="data" name="Data" type="date" data-required="true"
+                     class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-600 shadow-sm"/>
+            </div>
+
+            <div class="flex-1">
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Unidade <span class="text-red-500">*</span></label>
+              <div class="flex gap-2">
+                <select id="unidade" name="Unidade" data-required="true"
+                        class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-600 shadow-sm"></select>
+                <button type="button" id="btnEditUnits" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50 text-sm">Editar</button>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">Use “Editar” para ajustar a lista (salvo no navegador).</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Armazém -->
+        <section class="rounded-2xl p-5 border bg-blue-50/70 border-blue-200 card-shadow">
+          <div class="flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-80 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7l9-4 9 4M4 10h16v10H4z"/></svg>
+            <h2 class="text-xl font-semibold">Armazém</h2>
+          </div>
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div><label class="block text-sm font-semibold mb-2">Volume In (tons)</label><input name="Volume In (tons)" type="number" placeholder="Ex: 150" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Volume Out (tons)</label><input name="Volume Out (tons)" type="number" placeholder="Ex: 140" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Corte (KG)</label><input name="Corte (KG)" type="number" placeholder="Ex: 2500" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+
+            <div><label class="block text-sm font-semibold mb-2">Contagem cíclica</label><input name="Contagem cíclica" data-format="percent" placeholder="Ex: 95%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">ILA %</label><input name="ILA %" data-format="percent" placeholder="Ex: 98%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">IRA %</label><input name="IRA %" data-format="percent" placeholder="Ex: 97%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+
+            <div><label class="block text-sm font-semibold mb-2">Paletes Pendentes</label><input name="Paletes Pendentes" type="number" placeholder="Ex: 15" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Perdas (avarias e diferença de estoque)</label><input name="Perdas (avarias e diferença de estoque)" data-format="percent" placeholder="Ex: 2%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+          </div>
+        </section>
+
+        <!-- RH -->
+        <section class="rounded-2xl p-5 border bg-indigo-50/70 border-indigo-200 card-shadow">
+          <div class="flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-80 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 14a4 4 0 10-8 0v5h8v-5zM12 7a4 4 0 110-8 4 4 0 010 8z"/></svg>
+            <h2 class="text-xl font-semibold">Recursos Humanos (RH)</h2>
+          </div>
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div><label class="block text-sm font-semibold mb-2">HE armazém e transporte</label><input name="HE armazém e transporte" type="number" placeholder="Ex: 120" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Turn over</label><input name="Turn over" data-format="percent" placeholder="Ex: 5%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Absenteísmo</label><input name="Absenteísmo" data-format="percent" placeholder="Ex: 3%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div class="sm:col-span-2 lg:col-span-3"><label class="block text-sm font-semibold mb-2">Custo MOT (armazém e transporte)</label><input name="Custo MOT (armazém e transporte)" data-format="money" placeholder="Ex: R$ 15.000" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+          </div>
+        </section>
+
+        <!-- Transporte & Distribuição -->
+        <section class="rounded-2xl p-5 border bg-emerald-50/70 border-emerald-200 card-shadow">
+          <div class="flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-80 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16V7a2 2 0 012-2h7l5 5v6M3 16h18M7 20h.01M17 20h.01"/></svg>
+            <h2 class="text-xl font-semibold">Transporte e Distribuição</h2>
+          </div>
+          <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div><label class="block text-sm font-semibold mb-2">Largada (Total de veículos)</label><input name="Largada (Total de veículos)" type="number" placeholder="Ex: 25" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Largada (Veículos que saíram no horario)</label><input name="Largada (Veículos que saíram no horario)" type="number" placeholder="Ex: 23" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Volume</label><input name="Volume" type="number" placeholder="Ex: 1500" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Ocupação</label><input name="Ocupação" data-format="percent" placeholder="Ex: 85%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Disponibilidade Perdas no transporte</label><input name="Disponibilidade Perdas no transporte" data-format="percent" placeholder="Ex: 1%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">ON TIME</label><input name="ON TIME" data-format="percent" placeholder="Ex: 95%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">IN FULL</label><input name="IN FULL" data-format="percent" placeholder="Ex: 98%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">FILL RATE</label><input name="FILL RATE" data-format="percent" placeholder="Ex: 96%" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div><label class="block text-sm font-semibold mb-2">Ocorrências quantidade</label><input name="Ocorrências quantidade" type="number" placeholder="Ex: 3" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+            <div class="sm:col-span-2 lg:col-span-3"><label class="block text-sm font-semibold mb-2">Ocorrências em R$</label><input name="Ocorrências em R$" data-format="money" placeholder="Ex: R$ 2.500" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+          </div>
+        </section>
+
+        <div id="msgArea" class="text-sm"></div>
+        <div class="flex flex-wrap gap-3 justify-end pt-2">
+          <button type="button" id="btnClear"  class="px-4 py-2 rounded-xl border border-gray-300 bg-white shadow-sm hover:bg-gray-50">Limpar</button>
+          <button type="button" id="btnSave"   class="px-4 py-2 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#22a6f2">Salvar</button>
+          <button type="button" id="btnExport" class="px-4 py-2 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#0b59f8">Exportar CSV</button>
+        </div>
+      </form>
+    </main>
+
+    <!-- ======================== PESQUISA ======================== -->
+    <main id="viewPesquisa" class="hidden space-y-4">
+      <section class="card card-shadow rounded-2xl p-5">
+        <div class="flex flex-col lg:flex-row gap-4 lg:items-end">
+          <div class="flex-1"><label class="block text-sm font-semibold mb-1">Data</label><input id="pesqData" type="date" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+          <div class="flex-1"><label class="block text-sm font-semibold mb-1">Unidade</label><select id="pesqUnidade" class="input-field w-full rounded-xl px-3 py-2 text-sm"></select></div>
+          <div class="flex-1"><label class="block text-sm font-semibold mb-1">Texto</label><input id="pesqTexto" type="text" placeholder="Buscar em qualquer coluna" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+          <div class="flex-none"><button id="btnExportAll" class="px-4 py-2 mt-6 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#0b59f8">Exportar Registros</button></div>
+        </div>
+
+        <div class="mt-4 overflow-auto rounded-xl border relative">
+          <table id="tblResultados" class="min-w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0 z-10">
+              <tr id="pesqHead"></tr>
+            </thead>
+            <tbody id="pesqBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- ======================== DASHBOARD ======================== -->
+    <main id="viewDashboard" class="space-y-6 sm:space-y-8">
+      <!-- Filtros em linha -->
+      <section class="card card-shadow rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Período (De)</label>
+            <input id="fDe" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Período (Até)</label>
+            <input id="fAte" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Unidades</label>
+            <div id="chipsUn" class="flex flex-wrap items-center gap-2"></div>
+          </div>
+          <div class="ml-auto self-center">
+            <span id="fQuantidade" class="text-sm text-gray-500">0 registros filtrados</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <div class="flex items-center gap-2 text-gray-600 mb-2"><span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span><span class="font-semibold">ON TIME</span></div>
+          <div id="kOnTime" class="text-3xl font-bold text-blue-700 mb-3">--</div>
+          <div class="kpi-bar"><div id="pbOnTime" class="kpi-fill"></div></div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <div class="flex items-center gap-2 text-gray-600 mb-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span><span class="font-semibold">IN FULL</span></div>
+          <div id="kInFull" class="text-3xl font-bold text-blue-700 mb-3">--</div>
+          <div class="kpi-bar"><div id="pbInFull" class="kpi-fill"></div></div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <div class="flex items-center gap-2 text-gray-600 mb-2"><span class="w-2.5 h-2.5 rounded-full bg-purple-600"></span><span class="font-semibold">FILL RATE</span></div>
+          <div id="kFill" class="text-3xl font-bold text-blue-700 mb-3">--</div>
+          <div class="kpi-bar"><div id="pbFill" class="kpi-fill"></div></div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <div class="text-gray-600 mb-2 font-semibold">Volume Médio</div>
+          <div class="text-3xl font-bold text-blue-700"><span id="kVolMedio">--</span></div>
+          <div class="text-xs text-gray-500 mt-1">unidades</div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <div class="text-gray-600 mb-2 font-semibold">Ocorrências</div>
+          <div class="text-3xl font-bold text-blue-700"><span id="kOcorr">--</span></div>
+          <div class="text-xs text-gray-500 mt-1">total</div>
+        </div>
+      </section>
+
+      <section class="grid gap-6 sm:gap-8 grid-cols-1 lg:grid-cols-2">
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-bold mb-4">Volume In / Out por Data</h3>
+          <div class="chart-container"><canvas id="chVolume"></canvas></div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-bold mb-4">Largada — Total x No horário</h3>
+          <div class="chart-container"><canvas id="chLargada"></canvas></div>
+        </div>
+      </section>
+
+      <section class="card card-shadow rounded-2xl p-4 sm:p-6">
+        <h3 class="text-lg sm:text-xl font-bold mb-4">Registros Filtrados</h3>
+        <div class="overflow-auto rounded-xl border">
+          <table class="w-full min-w-full text-sm">
+            <thead class="bg-gradient-to-r from-blue-50 to-purple-50"><tr id="tblHead"></tr></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- ======================== VISÃO GERAL ======================== -->
+    <main id="viewOverview" class="hidden space-y-6 sm:space-y-8">
+      <!-- Filtros em linha -->
+      <section class="card card-shadow rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Período (De)</label>
+            <input id="ovDe" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Período (Até)</label>
+            <input id="ovAte" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold text-gray-700">Unidades</label>
+            <div id="ovChips" class="flex flex-wrap items-center gap-2"></div>
+          </div>
+          <div class="ml-auto self-center">
+            <span id="ovQuantidade" class="text-sm text-gray-500">0 registros filtrados</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="ovKpiGrid" class="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></section>
+
+      <section class="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <div class="card card-shadow rounded-2xl p-4 sm:p-5"><h4 class="font-semibold text-gray-600">Contagem cíclica</h4><canvas id="ovGaugeCc" height="100"></canvas></div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-5"><h4 class="font-semibold text-gray-600">ILA %</h4><canvas id="ovGaugeIla" height="100"></canvas></div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-5"><h4 class="font-semibold text-gray-600">IRA %</h4><canvas id="ovGaugeIra" height="100"></canvas></div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-5"><h4 class="font-semibold text-gray-600">Ocupação</h4><canvas id="ovGaugeOcp" height="100"></canvas></div>
+      </section>
+
+      <section class="grid gap-6 grid-cols-1 lg:grid-cols-2">
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-bold mb-4">Volume In / Out por Data</h3>
+          <div class="chart-container"><canvas id="ovChVolume"></canvas></div>
+        </div>
+        <div class="card card-shadow rounded-2xl p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-bold mb-4">Largada — Total x No horário</h3>
+          <div class="chart-container"><canvas id="ovChLargada"></canvas></div>
+        </div>
+      </section>
+
+      <div class="flex justify-end gap-2">
+        <button id="ovExportCsv" class="px-4 py-2 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#0b59f8">Exportar CSV</button>
+        <button id="ovExportPng" class="px-4 py-2 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#22a6f2">Exportar PNG</button>
+      </div>
+    </main>
+
+    <!-- ======================== MATRIZ KPI ======================== -->
+    <main id="viewMatrix" class="hidden space-y-6 sm:space-y-8">
+      <!-- Filtros em linha -->
+      <section class="card card-shadow rounded-2xl p-4 sm:p-5">
+        <div class="flex flex-wrap items-end gap-3 sm:gap-4">
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold">Período (De)</label>
+            <input id="mxDe" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold">Período (Até)</label>
+            <input id="mxAte" type="date" class="input-field rounded-xl px-3 py-2 text-sm w-[150px] sm:w-[170px]"/>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-sm font-semibold">Unidades</label>
+            <div id="mxChips" class="flex flex-wrap gap-2 mt-0"></div>
+          </div>
+          <div class="ml-auto self-center">
+            <span id="mxQuantidade" class="text-sm text-gray-500">0 registros filtrados</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-shadow rounded-2xl p-0 overflow-auto">
+        <div class="p-4 flex items-center justify-between">
+          <h3 class="text-lg sm:text-xl font-bold">Matriz de KPIs por Unidade</h3>
+          <button id="mxExportCsv" class="px-4 py-2 rounded-xl text-white font-medium shadow hover:opacity-90" style="background:#0b59f8">Exportar CSV</button>
+        </div>
+        <div class="overflow-auto">
+          <table id="mxTable" class="min-w-[1000px] w-full text-sm border-t">
+            <thead class="sticky top-0 z-10"><tr id="mxHead" class="bg-slate-50"></tr></thead>
+            <tbody id="mxBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer id="footTime" class="text-center text-xs text-gray-400"></footer>
+  </div>
+
+  <!-- Dialog Unidades -->
+  <dialog id="dlgUnits" class="rounded-2xl p-0 w-full max-w-lg">
+    <form method="dialog" class="p-6">
+      <h3 class="text-lg font-semibold mb-2">Editar lista de Unidades</h3>
+      <p class="text-sm text-gray-500 mb-4">Uma por linha. Ex.: FOR, RMSPII, RMRJ…</p>
+      <textarea id="txtUnits" class="w-full h-48 rounded-xl border border-gray-300 px-3 py-2 text-sm"></textarea>
+      <div class="flex justify-end gap-2 mt-4">
+        <button value="cancel" class="px-3 py-2 rounded-xl border bg-white">Cancelar</button>
+        <button id="btnSaveUnits" value="default" class="px-4 py-2 rounded-xl text-white" style="background:#0b59f8">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog Branding (mantido, sem botão de acesso) -->
+  <dialog id="dlgBrand" class="rounded-2xl p-0 w-full max-w-lg">
+    <form method="dialog" class="p-6">
+      <h3 class="text-lg font-semibold mb-2">Branding</h3>
+      <p class="text-sm text-gray-500 mb-4">Cores da marca.</p>
+      <div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+        <div><label class="block text-sm font-medium text-gray-800 mb-1">Cor Primária</label><input id="inpBrand1" type="color" value="#0B59F8" class="w-16 h-10 rounded-md border"/></div>
+        <div><label class="block text-sm font-medium text-gray-800 mb-1">Cor Acento</label><input id="inpBrand2" type="color" value="#22A6F2" class="w-16 h-10 rounded-md border"/></div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button value="cancel" class="px-3 py-2 rounded-xl border bg-white">Cancelar</button>
+        <button id="btnSaveBrand" value="default" class="px-4 py-2 rounded-xl text-white" style="background:#0b59f8">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog EDITAR REGISTRO (Pesquisa) -->
+  <dialog id="dlgEditRow" class="rounded-2xl p-0 w-full max-w-5xl">
+    <form id="frmEditRow" method="dialog" class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Editar registro</h3>
+        <button value="cancel" class="px-3 py-1 rounded-lg border bg-white hover:bg-gray-50" aria-label="Fechar">Fechar</button>
+      </div>
+      <div id="editGrid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"></div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="btnDupRow" value="dup" class="px-4 py-2 rounded-xl border bg-white hover:bg-gray-50">Duplicar</button>
+        <button id="btnSaveRow" value="default" class="px-4 py-2 rounded-xl text-white" style="background:#0b59f8">Salvar</button>
+      </div>
+      <input type="hidden" id="editId"/>
+    </form>
+  </dialog>
+
+  <!-- Toast (Undo) -->
+  <div id="toast" class="card card-shadow rounded-xl px-4 py-3 flex items-center gap-3">
+    <span id="toastMsg" class="text-sm"></span>
+    <button id="btnUndo" class="px-3 py-1 rounded-lg border bg-white hover:bg-gray-50 text-sm">Desfazer</button>
+  </div>
+
+  <script>
+  Chart.register(ChartDataLabels);
+
+  const HEADERS = [
+    "Data","Unidade","Volume In (tons)","Volume Out (tons)","Corte (KG)",
+    "Contagem cíclica","ILA %","IRA %","Paletes Pendentes",
+    "Perdas (avarias e diferença de estoque)",
+    "HE armazém e transporte","Turn over","Absenteísmo",
+    "Custo MOT (armazém e transporte)",
+    "Largada (Total de veículos)","Largada (Veículos que saíram no horario)",
+    "Volume","Ocupação","Disponibilidade Perdas no transporte",
+    "ON TIME","IN FULL","FILL RATE","Ocorrências quantidade","Ocorrências em R$"
+  ];
+  const DEFAULT_UNITS = ["FOR","RMSPII","RMRJ","REC","RPII","MAQ","CWBIII"];
+  const REQUIRED = ["Data","Unidade"];
+
+  function applyBrand(brand){
+    if(!brand) return;
+    document.documentElement.style.setProperty('--brand', brand.primary || '#0b59f8');
+    document.documentElement.style.setProperty('--accent', brand.accent || '#22a6f2');
+  }
+  function loadBrand(){ try { return JSON.parse(localStorage.getItem('bi_brand')||'{}'); } catch { return {}; } }
+  function saveBrand(b){ localStorage.setItem('bi_brand', JSON.stringify(b)); }
+  applyBrand(loadBrand());
+  document.getElementById('btnTheme').addEventListener('click', ()=>{ document.documentElement.classList.toggle('dark'); });
+
+  const unidadeSelect = document.getElementById('unidade');
+  const pesqUnidade   = document.getElementById('pesqUnidade');
+
+  function getUnits(){
+    try{ const U = JSON.parse(localStorage.getItem('bi_units')||'[]'); return (U && U.length)? U : DEFAULT_UNITS; }
+    catch{ return DEFAULT_UNITS; }
+  }
+  function setUnits(list){
+    if (unidadeSelect) unidadeSelect.innerHTML = '<option value="" disabled selected>Selecione...</option>' + list.map(u=>`<option value="${u}">${u}</option>`).join('');
+    if (pesqUnidade)   pesqUnidade.innerHTML   = '<option value="">Todas</option>' + list.map(u=>`<option value="${u}">${u}</option>`).join('');
+    const chipsHtml = (list.length?list:DEFAULT_UNITS).map(u=>`<button type="button" class="chip" data-un="${u}">${u}</button>`).join('');
+    ['chipsUn','ovChips','mxChips'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML = chipsHtml; });
+  }
+  (function initUnits(){ setUnits(getUnits()); })();
+  document.getElementById('btnEditUnits').addEventListener('click', ()=>{
+    const list = getUnits();
+    document.getElementById('txtUnits').value = (list||DEFAULT_UNITS).join('\n');
+    document.getElementById('dlgUnits').showModal();
+  });
+  document.getElementById('btnSaveUnits').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const lines = document.getElementById('txtUnits').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const uniq  = Array.from(new Set(lines));
+    localStorage.setItem('bi_units', JSON.stringify(uniq));
+    setUnits(uniq);
+    document.getElementById('dlgUnits').close();
+  });
+
+  function clampPercent(n){ if (isNaN(n)) return NaN; return Math.min(100, Math.max(0, n)); }
+  function parsePercentField(val){
+    if (!val) return NaN;
+    let v = val.toString().trim().replace(',', '.').replace('%','').replace(/[^0-9.]/g,'');
+    return clampPercent(parseFloat(v));
+  }
+  const brlFmt = new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' });
+
+  function formatPercent(el){ const n = parsePercentField(el.value); el.value = isNaN(n)? '' : n.toString().replace('.',',') + '%'; }
+  function formatMoney(el){
+    let v = (el.value||'').toString().replace(/[R$\.\s]/g,'').replace(',','.');
+    let n = parseFloat(v);
+    el.value = isNaN(n)? '' : brlFmt.format(n);
+  }
+  document.addEventListener('blur', (e)=>{
+    const el = e.target;
+    if (el && el.matches('[data-format="percent"]')) formatPercent(el);
+    if (el && el.matches('[data-format="money"]'))   formatMoney(el);
+  }, true);
+
+  function showMsg(text, type='ok'){
+    const box = document.getElementById('msgArea'); if(!box) return;
+    box.textContent = text; box.className = 'text-sm mt-2 ' + (type==='ok' ? 'text-emerald-700' : 'text-red-600');
+    setTimeout(()=>{ box.textContent=''; }, 2000);
+  }
+  function clearForm(){ document.querySelectorAll('#formBI input').forEach(i=>i.value=''); if(unidadeSelect) unidadeSelect.value=''; }
+
+  function parseNumber(x){
+    if (x==null) return NaN;
+    let s = String(x).trim(); if (!s) return NaN;
+    s = s.replace(/[R$ \.]/g,'').replace(',','.').replace('%','');
+    const n = parseFloat(s);
+    return isNaN(n)? NaN : n;
+  }
+  function parsePercent(x){ const n = parseNumber(x); return isNaN(n)? NaN : clampPercent(n); }
+  function fmtPct(n){ return isNaN(n)?'--':(n.toFixed(1)+'%'); }
+  function fmtNum(n){ return isNaN(n)?'--':new Intl.NumberFormat('pt-BR').format(n); }
+  function fmtMoney(n){ return isNaN(n)?'--':brlFmt.format(n); }
+  function dateOnly(d){ return String(d||'').slice(0,10); }
+
+  function ensureRowIds(rows){
+    let changed=false;
+    rows.forEach(r=>{
+      if(!r.id){ r.id=(crypto.randomUUID?crypto.randomUUID():('id_'+Math.random().toString(36).slice(2))); changed=true; }
+    });
+    if(changed) localStorage.setItem('bi_rows', JSON.stringify(rows));
+    return rows;
+  }
+  function loadRows(){ try { return ensureRowIds(JSON.parse(localStorage.getItem('bi_rows')||'[]')); } catch { return []; } }
+  function saveRows(rows){ localStorage.setItem('bi_rows', JSON.stringify(rows)); }
+
+  function validateForm(){
+    for (const name of REQUIRED){
+      const el = document.querySelector(`[name="${name}"]`);
+      if (!el || !el.value){ showMsg('Preencha os campos obrigatórios: Data e Unidade.','err'); return false; }
+    }
+    document.querySelectorAll('#formBI [data-format="percent"]').forEach(el=>{ if (el.value) formatPercent(el); });
+    return true;
+  }
+  function getFormRow(){
+    const form = document.getElementById('formBI');
+    return HEADERS.map(h=>{
+      const el = form.querySelector(`[name="${h}"]`);
+      return el ? (el.value||'').toString().replaceAll(';',',') : '';
+    });
+  }
+  document.getElementById('btnSave').addEventListener('click', ()=>{
+    if (!validateForm()) return;
+    const row = Object.fromEntries(HEADERS.map((h,i)=>[h, getFormRow()[i]]));
+    row.id = crypto.randomUUID?crypto.randomUUID():('id_'+Math.random().toString(36).slice(2));
+    const rows = loadRows(); rows.push(row); saveRows(rows);
+    showMsg('Registro salvo.');
+    clearForm();
+    renderPesquisa(); refreshDashboard(); refreshOverview(); refreshMatrix();
+  });
+  document.getElementById('btnExport').addEventListener('click', ()=>{
+    if (!validateForm()) return;
+    const csvHeader = HEADERS.join(';');
+    const csvRow    = getFormRow().join(';');
+    const blob = new Blob([csvHeader+'\n'+csvRow+'\n'], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'coleta_bi_catering.csv'; a.click(); URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('btnClear').addEventListener('click', clearForm);
+
+  const pesqHead = document.getElementById('pesqHead'); const pesqBody = document.getElementById('pesqBody');
+  if (pesqHead){
+    pesqHead.innerHTML =
+      HEADERS.map(h=>`<th class="text-left px-3 py-2 font-semibold">${h}</th>`).join('') +
+      `<th class="text-left px-3 py-2 font-semibold sticky-right">Ações</th>`;
+  }
+
+  let lastSnapshot = null;
+  function pushHistory(){ lastSnapshot = JSON.stringify(loadRows()); }
+  function showToast(msg){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=msg; t.style.display='flex'; setTimeout(()=>{t.style.display='none';},10000); }
+  document.getElementById('btnUndo').addEventListener('click', ()=>{ if(!lastSnapshot) return; saveRows(JSON.parse(lastSnapshot)); lastSnapshot=null; renderPesquisa(); refreshDashboard(); refreshOverview(); refreshMatrix(); document.getElementById('toast').style.display='none'; });
+
+  function renderPesquisa(){
+    if (!pesqBody) return;
+    const rows = loadRows();
+    const u = (document.getElementById('pesqUnidade')||{}).value||'';
+    const t = ((document.getElementById('pesqTexto')||{}).value||'').toLowerCase();
+    const d = (document.getElementById('pesqData')||{}).value||'';
+    const filtered = rows.filter(r=>{
+      const okU = !u || r['Unidade']===u;
+      const okT = !t || Object.values(r).some(v => String(v||'').toLowerCase().includes(t));
+      const okD = !d || dateOnly(r['Data']).startsWith(d);
+      return okU && okT && okD;
+    });
+
+    pesqBody.innerHTML = filtered.map(r => {
+      const tds = HEADERS.map(h=>`<td class="px-3 py-2 whitespace-nowrap">${r[h]||''}</td>`).join('');
+      const actions = `
+        <td class="px-3 py-2 whitespace-nowrap sticky-right bg-white">
+          <button class="btn-edit px-2 py-1 rounded-lg hover:bg-slate-100" title="Editar"   data-id="${r.id}">✏️</button>
+          <button class="btn-dup  px-2 py-1 rounded-lg hover:bg-slate-100" title="Duplicar" data-id="${r.id}">➕</button>
+          <button class="btn-del  px-2 py-1 rounded-lg hover:bg-slate-100" title="Excluir"   data-id="${r.id}">🗑️</button>
+        </td>`;
+      return `<tr class="odd:bg-white even:bg-gray-50">${tds}${actions}</tr>`;
+    }).join('');
+  }
+  ['pesqUnidade','pesqTexto','pesqData'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener(id==='pesqTexto'?'input':'change', renderPesquisa);
+  });
+  pesqBody.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('button'); if(!btn) return;
+    const id = btn.dataset.id; if(!id) return;
+    if (btn.classList.contains('btn-edit')) { openEditDialog(id); }
+    else if (btn.classList.contains('btn-dup')) { pushHistory(); duplicateRow(id); showToast('Registro duplicado • Desfazer'); }
+    else if (btn.classList.contains('btn-del')) {
+      if (confirm('Confirmar exclusão do registro?')){
+        pushHistory(); deleteRow(id); showToast('Registro removido • Desfazer');
+      }
+    }
+  });
+
+  const PLACEHOLDERS = {
+    "Volume In (tons)":"Ex: 150","Volume Out (tons)":"Ex: 140","Corte (KG)":"Ex: 2500",
+    "Contagem cíclica":"Ex: 95%","ILA %":"Ex: 98%","IRA %":"Ex: 97%","Paletes Pendentes":"Ex: 15",
+    "Perdas (avarias e diferença de estoque)":"Ex: 2%","HE armazém e transporte":"Ex: 120",
+    "Turn over":"Ex: 5%","Absenteísmo":"Ex: 3%","Custo MOT (armazém e transporte)":"Ex: R$ 15.000",
+    "Largada (Total de veículos)":"Ex: 25","Largada (Veículos que saíram no horario)":"Ex: 23","Volume":"Ex: 1500",
+    "Ocupação":"Ex: 85%","Disponibilidade Perdas no transporte":"Ex: 1%","ON TIME":"Ex: 95%","IN FULL":"Ex: 98%","FILL RATE":"Ex: 96%",
+    "Ocorrências quantidade":"Ex: 3","Ocorrências em R$":"Ex: R$ 2.500"
+  };
+  const PCT_FIELDS = new Set(["Contagem cíclica","ILA %","IRA %","Ocupação","Disponibilidade Perdas no transporte","ON TIME","IN FULL","FILL RATE","Perdas (avarias e diferença de estoque)","Turn over","Absenteísmo"]);
+  const BRL_FIELDS = new Set(["Custo MOT (armazém e transporte)","Ocorrências em R$"]);
+  function idSafe(name){ return 'edit_'+name.toLowerCase().replace(/[^\w]+/g,'_'); }
+
+  (function buildEditForm(){
+    const grid = document.getElementById('editGrid');
+    const unitsOptions = getUnits().map(u=>`<option value="${u}">${u}</option>`).join('');
+    grid.insertAdjacentHTML('beforeend', `
+      <div><label class="block text-sm font-semibold mb-1">Data *</label>
+        <input id="${idSafe('Data')}" type="date" class="input-field w-full rounded-xl px-3 py-2 text-sm" data-required="true"/></div>
+      <div><label class="block text-sm font-semibold mb-1">Unidade *</label>
+        <select id="${idSafe('Unidade')}" class="input-field w-full rounded-xl px-3 py-2 text-sm" data-required="true">${unitsOptions}</select></div>
+    `);
+    HEADERS.slice(2).forEach(h=>{
+      const type = PCT_FIELDS.has(h) ? 'data-format="percent"' : (BRL_FIELDS.has(h)?'data-format="money"':'');
+      const inputType = (h.includes('tons')||h.includes('KG')||h.includes('Paletes')||h==='Volume'||h==='Ocorrências quantidade'||h.includes('Total de veículos')||h.includes('horario')) && !PCT_FIELDS.has(h) && !BRL_FIELDS.has(h) ? 'type="number"' : 'type="text"';
+      grid.insertAdjacentHTML('beforeend', `
+        <div><label class="block text-sm font-semibold mb-1">${h}</label>
+          <input id="${idSafe(h)}" ${inputType} ${type} placeholder="${PLACEHOLDERS[h]||''}" class="input-field w-full rounded-xl px-3 py-2 text-sm"/></div>
+      `);
+    });
+  })();
+
+  function getRowById(id){ return loadRows().find(r=>r.id===id); }
+  function openEditDialog(id){
+    const row = getRowById(id); if(!row) return;
+    document.getElementById('editId').value = id;
+    HEADERS.forEach(h=>{
+      const el = document.getElementById(idSafe(h));
+      if (!el) return;
+      el.value = row[h] || '';
+    });
+    document.getElementById('dlgEditRow').showModal();
+  }
+  function collectEditForm(){
+    const obj = {}; for (const h of HEADERS){ const el = document.getElementById(idSafe(h)); obj[h] = el ? (el.value||'') : ''; } return obj;
+  }
+  function validateRow(row){
+    if (!row['Data'] || !row['Unidade']) return {ok:false, msg:'Data e Unidade são obrigatórios.'};
+    PCT_FIELDS.forEach(f=>{
+      if(row[f]){
+        let n = parsePercentField(row[f]);
+        row[f] = isNaN(n)? '' : n.toString().replace('.',',')+'%';
+      }
+    });
+    BRL_FIELDS.forEach(f=>{
+      if(row[f]){
+        let v = row[f].toString().replace(/[R$\.\s]/g,'').replace(',','.');
+        let n = parseFloat(v);
+        row[f] = isNaN(n)? '' : brlFmt.format(n);
+      }
+    });
+    return {ok:true};
+  }
+  function updateRow(id, patch){
+    const rows = loadRows();
+    const idx = rows.findIndex(r=>r.id===id); if(idx<0) return;
+    rows[idx] = {...rows[idx], ...patch};
+    saveRows(rows);
+    renderPesquisa(); refreshDashboard(); refreshOverview(); refreshMatrix();
+  }
+  function duplicateRow(id){
+    const rows = loadRows();
+    const r = rows.find(x=>x.id===id); if(!r) return;
+    const copy = {...r, id:(crypto.randomUUID?crypto.randomUUID():('id_'+Math.random().toString(36).slice(2)))};
+    rows.push(copy); saveRows(rows);
+    renderPesquisa(); refreshDashboard(); refreshOverview(); refreshMatrix();
+  }
+  function deleteRow(id){
+    const rows = loadRows().filter(r=>r.id!==id);
+    saveRows(rows);
+    renderPesquisa(); refreshDashboard(); refreshOverview(); refreshMatrix();
+  }
+  document.getElementById('btnSaveRow').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const patch = collectEditForm();
+    const v = validateRow(patch);
+    if(!v.ok){ alert(v.msg); return; }
+    pushHistory();
+    updateRow(id, patch);
+    document.getElementById('dlgEditRow').close();
+    showToast('Registro atualizado • Desfazer');
+  });
+  document.getElementById('btnDupRow').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    pushHistory();
+    duplicateRow(id);
+    document.getElementById('dlgEditRow').close();
+    showToast('Registro duplicado • Desfazer');
+  });
+  document.getElementById('btnExportAll').addEventListener('click', ()=>{
+    const rows = loadRows();
+    if (!rows.length) return;
+    const lines = [HEADERS.join(';'), ...rows.map(r=>HEADERS.map(h=>String(r[h]||'').replaceAll(';',',')).join(';'))];
+    const blob = new Blob([lines.join('\n')+'\n'], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='registros_bi_catering.csv'; a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  function groupByDate(rows){
+    const map = new Map();
+    rows.forEach(r=>{
+      const d = dateOnly(r['Data']);
+      const g = map.get(d) || { in:0, out:0, largTot:0, largOn:0 };
+      g.in      += parseNumber(r['Volume In (tons)']);
+      g.out     += parseNumber(r['Volume Out (tons)']);
+      g.largTot += parseNumber(r['Largada (Total de veículos)']);
+      g.largOn  += parseNumber(r['Largada (Veículos que saíram no horario)']);
+      map.set(d,g);
+    });
+    const labels = Array.from(map.keys()).sort();
+    const series = labels.map(d => map.get(d));
+    return { labels, series };
+  }
+  function avgPct(rows, key){
+    const vals = rows.map(r => parsePercent(r[key])).filter(v => !isNaN(v));
+    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : NaN;
+  }
+
+  const tblHead = document.getElementById('tblHead'); const tblBody = document.getElementById('tblBody');
+  if (tblHead) tblHead.innerHTML = ['Data','Unidade','ON TIME','IN FULL','FILL RATE','Volume','Ocupação','Ocorrências quantidade']
+    .map(h=>`<th class="px-3 py-2 text-left font-semibold">${h}</th>`).join('');
+
+  let chVolume, chLargada;
+  function brDateTick(label){
+    const parts = (label||'').split('-');
+    if (parts.length>=3) return parts[2].padStart(2,'0')+'/'+parts[1].padStart(2,'0');
+    return label;
+  }
+
+  function refreshDashboard(){
+    const rows = applyFilters(loadRows(),'f');
+    const qEl = document.getElementById('fQuantidade');
+    if (qEl){ const n = rows.length; qEl.textContent = n+' '+(n===1?'registro filtrado':'registros filtrados'); }
+
+    const ontime = avgPct(rows, 'ON TIME');
+    const infull = avgPct(rows, 'IN FULL');
+    const fill   = avgPct(rows, 'FILL RATE');
+    const vols   = rows.map(r => parseNumber(r['Volume'])).filter(v=>!isNaN(v));
+    const volMed = vols.length ? Math.round(vols.reduce((a,b)=>a+b,0)/vols.length) : NaN;
+    const ocorr  = rows.map(r=>parseNumber(r['Ocorrências quantidade'])).filter(v=>!isNaN(v)).reduce((a,b)=>a+b,0);
+
+    const el = id => document.getElementById(id);
+    el('kOnTime').textContent  = fmtPct(ontime);
+    el('kInFull').textContent  = fmtPct(infull);
+    el('kFill').textContent    = fmtPct(fill);
+    el('pbOnTime').style.width = (isNaN(ontime)?0:ontime)+'%';
+    el('pbInFull').style.width = (isNaN(infull)?0:infull)+'%';
+    el('pbFill').style.width   = (isNaN(fill)?0:fill)+'%';
+    el('kVolMedio').textContent= isNaN(volMed)?'--':fmtNum(volMed);
+    el('kOcorr').textContent   = fmtNum(ocorr);
+
+    const g = groupByDate(rows);
+    const labels = g.labels;
+
+    if (chVolume) chVolume.destroy();
+    chVolume = new Chart(el('chVolume'), {
+      type:'bar',
+      data:{ labels, datasets:[
+        {label:'Volume In',  data:g.series.map(s=>s.in),  borderColor:'#0B59F8', backgroundColor:'rgba(11,89,248,.25)', borderWidth:2, borderRadius:6, categoryPercentage:0.6, barPercentage:0.9},
+        {label:'Volume Out', data:g.series.map(s=>s.out), borderColor:'#22A6F2', backgroundColor:'rgba(34,166,242,.25)', borderWidth:2, borderRadius:6, categoryPercentage:0.6, barPercentage:0.9}
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'top', align:'center'},
+          datalabels:{
+            anchor:'end', align:'end', clamp:true,
+            formatter:(v)=> v>0 ? new Intl.NumberFormat('pt-BR').format(v) : null,
+            color:'#1f2937', font:{weight:600, size:11}
+          },
+          tooltip:{callbacks:{label:(ctx)=> `${ctx.dataset.label}: ${new Intl.NumberFormat('pt-BR').format(ctx.raw)}`}}
+        },
+        scales:{
+          x:{
+            grid:{display:false},
+            ticks:{maxRotation:0, autoSkip:true, callback:function(v){ return brDateTick(this.getLabelForValue(v)); }}
+          },
+          y:{beginAtZero:true, grid:{color:'#E5E7EB'}, ticks:{callback:(v)=> new Intl.NumberFormat('pt-BR').format(v)}}
+        }
+      }
+    });
+
+    if (chLargada) chLargada.destroy();
+    chLargada = new Chart(el('chLargada'), {
+      type:'bar',
+      data:{ labels, datasets:[
+        {label:'Total', data:g.series.map(s=>s.largTot), backgroundColor:'rgba(11,89,248,.75)'},
+        {label:'No horário', data:g.series.map(s=>s.largOn), backgroundColor:'rgba(34,166,242,.65)'}
+      ]},
+      options:{ plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}, x:{ticks:{callback:function(v){return brDateTick(this.getLabelForValue(v));}}, grid:{display:false}} } }
+    });
+
+    tblBody.innerHTML = rows.map(r=>{
+      const pill = `<span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">${r['Unidade']||''}</span>`;
+      const cells = [r['Data']||'', pill, r['ON TIME']||'', r['IN FULL']||'', r['FILL RATE']||'', r['Volume']||'', r['Ocupação']||'', r['Ocorrências quantidade']||'']
+        .map(c=>`<td class="px-3 py-2 whitespace-nowrap">${c}</td>`).join('');
+      return `<tr class="odd:bg-white even:bg-gray-50">${cells}</tr>`;
+    }).join('');
+  }
+  document.getElementById('chipsUn').addEventListener('click', (ev)=>{ if (ev.target.matches('.chip')) { ev.target.classList.toggle('on'); refreshDashboard(); } });
+  ['fDe','fAte'].forEach(id=>{ const el=document.getElementById(id); el.addEventListener('change', refreshDashboard); });
+
+  let ovChVolume, ovChLargada, ovG1, ovG2, ovG3, ovG4;
+  const KPI_DEF = [
+    {key:'ON TIME', label:'ON TIME', type:'pct'},
+    {key:'IN FULL', label:'IN FULL', type:'pct'},
+    {key:'FILL RATE', label:'FILL RATE', type:'pct'},
+    {key:'Volume In (tons)', label:'Volume In (tons)', type:'avg'},
+    {key:'Volume Out (tons)', label:'Volume Out (tons)', type:'avg'},
+    {key:'Volume', label:'Volume', type:'avg'},
+    {key:'Ocupação', label:'Ocupação', type:'pct'},
+    {key:'Contagem cíclica', label:'Contagem cíclica', type:'pct'},
+    {key:'ILA %', label:'ILA %', type:'pct'},
+    {key:'IRA %', label:'IRA %', type:'pct'},
+    {key:'Paletes Pendentes', label:'Paletes Pendentes', type:'avg'},
+    {key:'Ocorrências quantidade', label:'Ocorrências quantidade', type:'sum'},
+    {key:'Ocorrências em R$', label:'Ocorrências em R$', type:'sumMoney'},
+    {key:'HE armazém e transporte', label:'HE armazém e transporte', type:'sum'},
+    {key:'Custo MOT (armazém e transporte)', label:'Custo MOT (armazém e transporte)', type:'sumMoney'}
+  ];
+  function aggregate(rows, key, type){
+    const vals = rows.map(r=>{
+      if (type==='pct' || ['ON TIME','IN FULL','FILL RATE','Ocupação','Contagem cíclica','ILA %','IRA %'].includes(key)) return parsePercent(r[key]);
+      return parseNumber(r[key]);
+    }).filter(v=>!isNaN(v));
+    if (!vals.length) return NaN;
+    if (type==='sum' || type==='sumMoney') return vals.reduce((a,b)=>a+b,0);
+    return vals.reduce((a,b)=>a+b,0)/vals.length;
+  }
+  function ovFiltered(){ 
+    const rows = applyFilters(loadRows(),'ov');
+    const q = document.getElementById('ovQuantidade'); if (q){ const n=rows.length; q.textContent = n+' '+(n===1?'registro filtrado':'registros filtrados'); }
+    return rows;
+  }
+  function doughnut(id,val,color){
+    return new Chart(document.getElementById(id), {
+      type:'doughnut',
+      data:{ labels:['OK','Gap'], datasets:[{ data:[isNaN(val)?0:val, 100-(isNaN(val)?0:val)], backgroundColor:[color,'#e5e7eb'], borderWidth:0 }] },
+      options:{ cutout:'70%', plugins:{ legend:{display:false}, tooltip:{enabled:false} }, rotation:-90, circumference:180 }
+    });
+  }
+  function makeKpiCard(kpi, value, delta){
+    let valueHtml='--', sub='', bar='';
+    if (kpi.type==='pct'){ valueHtml = fmtPct(value); sub='<span class="text-xs text-gray-500">média</span>'; bar=`<div class="kpi-bar mt-2"><div class="kpi-fill" style="width:${isNaN(value)?0:value}%"></div></div>`; }
+    else if (kpi.type==='sumMoney'){ valueHtml = fmtMoney(value); sub='<span class="text-xs text-gray-500">total</span>'; }
+    else if (kpi.type==='sum'){ valueHtml = fmtNum(value); sub='<span class="text-xs text-gray-500">total</span>'; }
+    else { valueHtml = fmtNum(Math.round(value)); sub='<span class="text-xs text-gray-500">média</span>'; }
+    const d = isNaN(delta)? '' : (delta>=0? `<span class="text-emerald-600 text-xs ml-2">▲ ${delta.toFixed(1)}${kpi.type==='pct'?' pp':''}</span>` :
+                                           `<span class="text-red-600 text-xs ml-2">▼ ${Math.abs(delta).toFixed(1)}${kpi.type==='pct'?' pp':''}</span>`);
+    return `<div class="card card-shadow rounded-2xl p-4 sm:p-6"><div class="text-gray-600 font-semibold mb-1">${kpi.label}</div><div class="text-3xl font-bold text-blue-700">${valueHtml}${d}</div>${bar}<div class="mt-1">${sub}</div></div>`;
+  }
+  function periodWindow(rows){
+    const labels = rows.map(r=>dateOnly(r['Data'])).filter(Boolean).sort();
+    if (!labels.length) return {cur:[], prev:[]};
+    const cutoffIdx = Math.max(0, labels.length-30);
+    const cutoff = labels[cutoffIdx];
+    const cur = rows.filter(r=>dateOnly(r['Data'])>=cutoff);
+    const prev= rows.filter(r=>dateOnly(r['Data'])<cutoff).slice(-30);
+    return {cur, prev};
+  }
+  function refreshOverview(){
+    const rows = ovFiltered();
+    const {cur, prev} = periodWindow(rows);
+
+    const grid = document.getElementById('ovKpiGrid'); grid.innerHTML='';
+    KPI_DEF.forEach(k=>{
+      let curVal, prevVal;
+      if (k.type==='pct')       { curVal=aggregate(cur,k.key,'pct'); prevVal=aggregate(prev,k.key,'pct'); }
+      else if (k.type==='sum' || k.type==='sumMoney'){ curVal=aggregate(cur,k.key,'sum'); prevVal=aggregate(prev,k.key,'sum'); }
+      else                     { curVal=aggregate(cur,k.key,'avg'); prevVal=aggregate(prev,k.key,'avg'); }
+      const delta = (isNaN(curVal)||isNaN(prevVal))? NaN : (k.type==='pct'? (curVal-prevVal) : ((curVal-prevVal)/(prevVal||1)*100));
+      grid.insertAdjacentHTML('beforeend', makeKpiCard(k,curVal,delta));
+    });
+
+    [ovG1,ovG2,ovG3,ovG4].forEach(g=>g&&g.destroy&&g.destroy());
+    ovG1 = doughnut('ovGaugeCc', aggregate(rows,'Contagem cíclica','pct'), '#0b59f8');
+    ovG2 = doughnut('ovGaugeIla', aggregate(rows,'ILA %','pct'),          '#22a6f2');
+    ovG3 = doughnut('ovGaugeIra', aggregate(rows,'IRA %','pct'),          '#7c3aed');
+    ovG4 = doughnut('ovGaugeOcp', aggregate(rows,'Ocupação','pct'),       '#16a34a');
+
+    const group = (function(){ const m=new Map(); rows.forEach(r=>{ const d=dateOnly(r['Data']); const o=m.get(d)||{in:0,out:0,largTot:0,largOn:0}; o.in+=parseNumber(r['Volume In (tons)']); o.out+=parseNumber(r['Volume Out (tons)']); o.largTot+=parseNumber(r['Largada (Total de veículos)']); o.largOn+=parseNumber(r['Largada (Veículos que saíram no horario)']); m.set(d,o); }); const labels=Array.from(m.keys()).sort(); const s=labels.map(d=>m.get(d)); return {labels,series:s}; })();
+
+    if (ovChVolume) ovChVolume.destroy();
+    ovChVolume = new Chart(document.getElementById('ovChVolume'), {
+      type:'bar',
+      data:{ labels:group.labels, datasets:[
+        {label:'Volume In',  data:group.series.map(s=>s.in),  borderColor:'#0B59F8', backgroundColor:'rgba(11,89,248,.25)', borderWidth:2, borderRadius:6, categoryPercentage:0.6, barPercentage:0.9},
+        {label:'Volume Out', data:group.series.map(s=>s.out), borderColor:'#22A6F2', backgroundColor:'rgba(34,166,242,.25)', borderWidth:2, borderRadius:6, categoryPercentage:0.6, barPercentage:0.9}
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'top', align:'center'},
+          datalabels:{anchor:'end', align:'end', clamp:true, formatter:(v)=> v>0 ? new Intl.NumberFormat('pt-BR').format(v) : null, color:'#1f2937', font:{weight:600,size:11}},
+          tooltip:{callbacks:{label:(ctx)=> `${ctx.dataset.label}: ${new Intl.NumberFormat('pt-BR').format(ctx.raw)}`}}
+        },
+        scales:{
+          x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, callback:function(v){ return brDateTick(this.getLabelForValue(v)); }}},
+          y:{beginAtZero:true, grid:{color:'#E5E7EB'}, ticks:{callback:(v)=> new Intl.NumberFormat('pt-BR').format(v)}}
+        }
+      }
+    });
+
+    if (ovChLargada) ovChLargada.destroy();
+    ovChLargada = new Chart(document.getElementById('ovChLargada'), {
+      type:'bar', data:{ labels:group.labels, datasets:[
+        {label:'Total', data:group.series.map(s=>s.largTot), backgroundColor:'rgba(11,89,248,.75)'},
+        {label:'No horário', data:group.series.map(s=>s.largOn), backgroundColor:'rgba(34,166,242,.65)'}
+      ]},
+      options:{ plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}, x:{ticks:{callback:function(v){return brDateTick(this.getLabelForValue(v));}}, grid:{display:false}} } }
+    });
+  }
+  ['ovDe','ovAte'].forEach(id=> document.getElementById(id).addEventListener('change', refreshOverview));
+  document.getElementById('ovChips').addEventListener('click',(ev)=>{ if (ev.target.matches('.chip')) { ev.target.classList.toggle('on'); refreshOverview(); }});
+  document.getElementById('ovExportCsv').addEventListener('click', ()=>{
+    const rows = ovFiltered();
+    const lines = ['KPI;Valor'];
+    const val = (k)=> {
+      if (k.type==='pct')     return fmtPct(aggregate(rows,k.key,'pct'));
+      if (k.type==='sumMoney')return fmtMoney(aggregate(rows,k.key,'sum'));
+      if (k.type==='sum')     return fmtNum(aggregate(rows,k.key,'sum'));
+      return fmtNum(Math.round(aggregate(rows,k.key,'avg')));
+    };
+    KPI_DEF.forEach(k=> lines.push(`${k.label};${val(k)}`));
+    const blob = new Blob([lines.join('\n')+'\n'], {type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='overview_kpis.csv'; a.click(); URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('ovExportPng').addEventListener('click', async ()=>{
+    const node = document.getElementById('viewOverview');
+    const canvas = await html2canvas(node, {backgroundColor:null, scale:2});
+    const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'overview.png'; a.click();
+  });
+
+  function applyFilters(rows, prefix){
+    const from = document.getElementById(prefix+'De')?.value||'';
+    const to   = document.getElementById(prefix+'Ate')?.value||'';
+    const chipsId = prefix==='f' ? 'chipsUn' : (prefix==='ov'?'ovChips':'mxChips');
+    const uns  = Array.from(document.querySelectorAll('#'+chipsId+' .chip.on')).map(b => b.dataset.un);
+    return rows.filter(r=>{
+      const okU = !uns.length || uns.includes(r['Unidade']);
+      const okF = !from || dateOnly(r['Data']) >= from;
+      const okT = !to   || dateOnly(r['Data']) <= to;
+      return okU && okF && okT;
+    });
+  }
+  const MATRIX_COLS = [
+    { key:'Unidade', label:'Unidade', type:'dim', align:'left',  width:140, sticky:true },
+    { key:'ratio:Largada (Veículos que saíram no horario)/Largada (Total de veículos)', label:'Largada %', type:'ratioPct', align:'right', width:110 },
+    { key:'ON TIME',           label:'ON TIME',      type:'avgPct',  align:'right', width:110 },
+    { key:'IN FULL',           label:'IN FULL',      type:'avgPct',  align:'right', width:110 },
+    { key:'FILL RATE',         label:'FILL RATE',    type:'avgPct',  align:'right', width:110 },
+    { key:'Ocupação',          label:'Ocupação',     type:'avgPct',  align:'right', width:110 },
+    { key:'Contagem cíclica',  label:'Contagem',     type:'avgPct',  align:'right', width:110 },
+    { key:'ILA %',             label:'ILA',          type:'avgPct',  align:'right', width:110 },
+    { key:'IRA %',             label:'IRA',          type:'avgPct',  align:'right', width:110 },
+    { key:'Volume In (tons)',  label:'Vol. In',      type:'avgNum',  align:'right', width:110 },
+    { key:'Volume Out (tons)', label:'Vol. Out',     type:'avgNum',  align:'right', width:110 },
+    { key:'Volume',            label:'Volume',       type:'avgNum',  align:'right', width:110 },
+    { key:'Paletes Pendentes', label:'Paletes',      type:'avgNum',  align:'right', width:110 },
+    { key:'HE armazém e transporte',                 label:'HE',          type:'sum',      align:'right', width:110 },
+    { key:'Ocorrências quantidade',                  label:'Ocorrências', type:'sum',      align:'right', width:120 },
+    { key:'Ocorrências em R$',                       label:'Ocorrências (R$)', type:'sumMoney', align:'right', width:140 },
+    { key:'Custo MOT (armazém e transporte)',        label:'MOT (R$)',    type:'sumMoney', align:'right', width:120 }
+  ];
+  const META_OK=98, META_ATT=95;
+  let mxSort = { idx:0, dir:1 };
+  function mxFiltered(){
+    const rows = applyFilters(loadRows(),'mx');
+    const q = document.getElementById('mxQuantidade'); if (q){ const n=rows.length; q.textContent = n+' '+(n===1?'registro filtrado':'registros filtrados'); }
+    return rows;
+  }
+  function average(rows, key, type){
+    const vals = rows.map(r=> type==='pct' ? parsePercent(r[key]) : parseNumber(r[key]) ).filter(v=>!isNaN(v));
+    if (!vals.length) return NaN;
+    if (type==='sum') return vals.reduce((a,b)=>a+b,0);
+    return vals.reduce((a,b)=>a+b,0)/vals.length;
+  }
+  function calcCol(rows, col){
+    if (col.type==='dim') return rows[0]?.['Unidade']||'';
+    if (col.type==='avgPct')  return average(rows, col.key, 'pct');
+    if (col.type==='avgNum')  return average(rows, col.key, 'avg');
+    if (col.type==='sum')     return average(rows, col.key, 'sum');
+    if (col.type==='sumMoney')return average(rows, col.key, 'sum');
+    if (col.type==='ratioPct'){
+      const [num,den] = col.key.replace('ratio:','').split('/').map(s=>s.trim());
+      const n = average(rows, num, 'sum'); const d = average(rows, den, 'sum');
+      return d? (n/d*100) : NaN;
+    }
+    return NaN;
+  }
+  function heatClass(val){
+    if (isNaN(val)) return '';
+    if (val>=META_OK) return 'heat-ok';
+    if (val>=META_ATT) return 'heat-warn';
+    return 'heat-bad';
+  }
+  function refreshMatrix(){
+    const rows = mxFiltered();
+    const units = Array.from(new Set(rows.map(r=>r['Unidade']).filter(Boolean)));
+    const data = units.map(u=>{
+      const r = rows.filter(x=>x['Unidade']===u);
+      const obj = {Unidade:u}; MATRIX_COLS.forEach(c=>{ if(c.key!=='Unidade') obj[c.key]=calcCol(r,c); });
+      return obj;
+    });
+
+    const head = document.getElementById('mxHead');
+    head.innerHTML = MATRIX_COLS.map((c,i)=>`<th data-idx="${i}" class="sticky-th px-3 py-2 font-semibold ${i===0?'sticky-first':''}" style="min-width:${c.width||100}px; text-align:${c.align||'left'}; ${i===0?'left:0;':''}">${c.label} <span class="text-gray-400">↕</span></th>`).join('');
+    head.onclick = (e)=>{ const th=e.target.closest('th'); if(!th) return; const idx=parseInt(th.dataset.idx||'0'); if(mxSort.idx===idx) mxSort.dir*=-1; else {mxSort.idx=idx; mxSort.dir=1;} renderBody(); };
+
+    function renderBody(){
+      const body = document.getElementById('mxBody');
+      const keyOf = (i)=>MATRIX_COLS[i].key;
+      const sorted = [...data].sort((a,b)=>{
+        if (mxSort.idx===0) return mxSort.dir * a['Unidade'].localeCompare(b['Unidade']);
+        const k = keyOf(mxSort.idx), va=a[k], vb=b[k];
+        return mxSort.dir * ((isNaN(va)?-Infinity:va) - (isNaN(vb)?-Infinity:vb));
+      });
+      body.innerHTML = sorted.map(row=>{
+        return `<tr class="odd:bg-white even:bg-gray-50">
+          ${MATRIX_COLS.map((c,i)=>{
+            let val = row[c.key]; let txt='';
+            if (c.type==='avgPct' || c.type==='ratioPct') txt = fmtPct(val);
+            else if (c.type==='sumMoney') txt = fmtMoney(val);
+            else if (c.type==='sum' || c.type==='avgNum') txt = fmtNum(val);
+            else txt = `<span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">${row['Unidade']}</span>`;
+            const cls = (c.type==='avgPct' || c.type==='ratioPct') ? heatClass(val) : '';
+            const sticky = i===0?'sticky-first':''; const left = i===0?'left:0;':'';
+            return `<td class="px-3 py-2 whitespace-nowrap ${cls} ${sticky}" style="text-align:${c.align||'left'}; ${left}">${txt}</td>`;
+          }).join('')}
+        </tr>`;
+      }).join('');
+    }
+    renderBody();
+  }
+  document.getElementById('mxChips').addEventListener('click',(ev)=>{ if (ev.target.matches('.chip')) { ev.target.classList.toggle('on'); refreshMatrix(); }});
+  ['mxDe','mxAte'].forEach(id=> document.getElementById(id).addEventListener('change', refreshMatrix));
+
+  const views = { coleta:'viewColeta', pesquisa:'viewPesquisa', dashboard:'viewDashboard', overview:'viewOverview', matrix:'viewMatrix' };
+  const tabs  = { coleta:'tabColeta', pesquisa:'tabPesquisa', dashboard:'tabDashboard', overview:'tabOverview', matrix:'tabMatrix' };
+
+  function setActive(which){
+    Object.keys(views).forEach(k=>{
+      document.getElementById(views[k]).classList.toggle('hidden', k!==which);
+      document.getElementById(tabs[k]).classList.toggle('active',  k===which);
+    });
+    if (which==='pesquisa') renderPesquisa();
+    if (which==='dashboard') refreshDashboard();
+    if (which==='overview')  refreshOverview();
+    if (which==='matrix')    refreshMatrix();
+  }
+  document.getElementById('topNav').addEventListener('click', (ev)=>{
+    const id = ev.target.id || ev.target.closest('button')?.id;
+    if (!id) return;
+    if (id===tabs.coleta)   setActive('coleta');
+    if (id===tabs.pesquisa) setActive('pesquisa');
+    if (id===tabs.dashboard)setActive('dashboard');
+    if (id===tabs.overview) setActive('overview');
+    if (id===tabs.matrix)   setActive('matrix');
+  });
+
+  document.getElementById('footTime').textContent = 'Gerado em ' + new Date().toLocaleString('pt-BR');
+
+  setActive('dashboard');
+  renderPesquisa(); refreshDashboard();
+  </script>
+</body>
+</html>
